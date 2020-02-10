@@ -173,6 +173,12 @@ namespace Vsa {
         void displaySessions ();
         static void displayResult (VString const &rResult);
         static bool g_bInteractive;
+        static bool g_bFullControl;
+
+	bool currentUserIsInRightsList ();
+	char *fullAdminRightsListName () {
+	  return "/vision/pool/vpooladmin.FARL";
+	}
 
     //  State
     protected:

@@ -104,6 +104,9 @@ namespace Vsa {
         static size_t CommandCount () {
             return CInvalid;
         }
+        static bool g_bFullControl;
+	static bool thisCommandShouldBeDisplayed (Command iCommand);
+
     public:
         static void displayPrompt ();
 
