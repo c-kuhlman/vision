@@ -634,6 +634,8 @@ public:
 
 	inline char const *ndfPathName () const;
 
+	inline int persistentFreeList () const;
+
 	inline unsigned int persistentEntryCount () const;
 
 	inline unsigned int spaceIndex () const;
@@ -1458,7 +1460,13 @@ void M_ASD::CT::decrementSpaceAllocation (size_t sAllocation) const {
 
 unsigned int M_ASD::CT::persistentEntryCount () const {
     PS_ASD *pPASD = m_pASD->persistentASD ();
-    return pPASD ? pPASD->CTEntryCount () : 0;
+    unsigned int result = pPASD ? pPASD->CTHighestInUseIndex () + 1 : 0;
+    return result == 1 ? 2 : result;
+}
+
+int M_ASD::CT::persistentFreeList () const {
+    PS_ASD *pPASD = m_pASD->persistentASD ();
+    return pPASD ? pPASD->CTFreeList () : PS_CT_FreeListNil;
 }
 
 char const *M_ASD::CT::ndfPathName () const {

@@ -203,6 +203,8 @@ public:
 	return m_xBaseSegment;
     }
 
+    int CTFreeList () const;
+    unsigned int CTHighestInUseIndex () const;
     unsigned int CTEntryCount () const {
 	return PS_CT_EntryCount (m_pCT);
     }

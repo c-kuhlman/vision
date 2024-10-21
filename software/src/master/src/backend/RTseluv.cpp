@@ -257,7 +257,7 @@ bool rtSELUV_Set::compact () {
 	unsigned int sCharUV = UV_CPD_ElementCount (m_pStringSpaceCPD);
 	
 	/*****  If the selector uvector is empty ... *****/   
-	if (sSelectors == 0) {
+	if (sSelectors == 0 && sCharUV == 0) {
 		return bWorkDone;
 	}
 	

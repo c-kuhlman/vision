@@ -12,6 +12,8 @@
 
 #include "Vk.h"
 
+#include "vstdio.h"
+
 /******************
  *****  Self  *****
  ******************/
@@ -34,6 +36,40 @@
  *****  Access  *****
  ********************
  ********************/
+
+unsigned int PS_ASD::CTHighestInUseIndex () const {
+    unsigned int highUsedIndex = 0; // Always a container table at slot 0
+    unsigned int ctIndex;
+    PS_CTE iCTE;
+
+    for (ctIndex = 1; ctIndex < CTEntryCount (); ctIndex++) {
+      if (GetLiveCTE (ctIndex, iCTE)) highUsedIndex = ctIndex;
+    }
+#ifdef DEBUG_CTable
+    IO_printf ("\n\tSpace: %u, Entry Count: %u, highUsed: %u FL: %i\n",
+	       spaceIndex (), CTEntryCount (), highUsedIndex, PS_CT_FreeList (m_pCT)); 
+#endif
+    return highUsedIndex;
+}
+
+int PS_ASD::CTFreeList () const {
+    unsigned int highUsedIndex = CTHighestInUseIndex ();
+    //   int ctIndex;
+    int freeList = (highUsedIndex > 0 && PS_CT_FreeList (m_pCT) > highUsedIndex)
+	? PS_CT_FreeListNil 
+	: PS_CT_FreeList (m_pCT);
+#if 0
+    PS_CTE iCTE;
+
+    for (ctIndex = PS_CT_FreeList (m_pCT);
+	 ctIndex != PS_CT_FreeListNil && ctIndex < highUsedIndex;
+	 ctIndex = PS_CTE_NextFree (PS_CT_Entry (m_pCT, ctIndex))) {
+      freeList = ctIndex;
+    }
+#endif
+    // if freeList is Nil, should adjust it if possible
+    return freeList;
+}
 
 bool PS_ASD::GetCTE (unsigned int xContainer, PS_CTE &rResult) const {
     if (xContainer < CTEntryCount ()) {

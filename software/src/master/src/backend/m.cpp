@@ -86,6 +86,9 @@ PrivateVarDef bool TracingCrossDBReferences = false;
 /* turn on for session GC debugging */
 // #define DEBUG_SESSION_GC
 
+/* turn on for Container Table debugging */
+// #define DEBUG_CTable
+
 /**********************
  *****  Counters  *****
  **********************/
@@ -711,7 +714,7 @@ M_ASD::CT::Page::Page (CT const *pCT, unsigned int xPage) : m_pCT (pCT), m_xPage
     pCT->incrementSpaceAllocation (sizeof (Page));
 
 //  Initialize persistent container entries to a reasonable default:
-    unsigned int xLimit = pCT->persistentEntryCount ();
+    unsigned int xLimit = pCT->entryCount ();
     if (xLimit > origin ()) {
 	xLimit-= origin ();
 
@@ -807,20 +810,49 @@ M_ASD::CT::CT (M_ASD *pASD)
 {
 //  Initialize the page vector, ...
     sizePageVector ();
-
+#ifdef DEBUG_CTable
+    IO_printf ("\nCT construction for Space %u:\n", spaceIndex ());
+#endif
 //  ... and initial the free list:
     PS_CT *pPCT = pASD->persistentCT ();
     if (pPCT) {
+#ifdef DEBUG_CTable
+	IO_printf ("Old Version:\n");
 	for (
 	    int xFreeListEntry = PS_CT_FreeList (pPCT);
 	    PS_CT_FreeListNil != xFreeListEntry;
 	    xFreeListEntry = PS_CTE_NextFree (PS_CT_Entry (pPCT, xFreeListEntry))
 	)
 	{
+	    IO_printf (
+		"\n\tFree list entry: %i %s", 
+		xFreeListEntry,
+		PS_CTE_IsFree (PS_CT_Entry (pPCT, xFreeListEntry)) ? "Free" : "InUse"
+	    );
+	}
+	IO_printf ("\nNew Version:\n");
+#endif
+	for (
+	     int xFreeListEntry = PS_CT_FreeList (pPCT);//persistentFreeList ();
+	    PS_CT_FreeListNil != xFreeListEntry;
+	    xFreeListEntry = PS_CTE_NextFree (PS_CT_Entry (pPCT, xFreeListEntry))
+	)
+	{
+#ifdef DEBUG_CTable
+	    IO_printf (
+		"\n\tFree list entry: %i %i %i %s", 
+		xFreeListEntry, m_xFreeListHead, m_xFreeListBase,
+		PS_CTE_IsFree (PS_CT_Entry (pPCT, xFreeListEntry)) ? "Free" : "InUse"
+	    );
+#endif
+	    if (xFreeListEntry >= m_cEntries) continue;
 	    entry (xFreeListEntry)->setToFreeListEntry (m_xFreeListHead);
 	    m_xFreeListHead = xFreeListEntry;
 	}
     }
+#ifdef DEBUG_CTable
+    IO_printf ("\nDone!\n");
+#endif
 }
 
 /*************************
@@ -852,7 +884,8 @@ unsigned int M_ASD::CT::entry () {
     m_xFreeListHead = entry (xEntry)->addressAsCTI ();
 
     if (m_xFreeListHead >= entryCount () && m_xFreeListHead != UINT_MAX) {
-	IO_printf ("\n+++ Bad free list entry: %u->%08x(%u)\n", xEntry, m_xFreeListHead, m_xFreeListHead);
+	IO_printf ("\n+++ Space %u: Bad free list entry: %u->%08x(%u)\n", spaceIndex (), xEntry, m_xFreeListHead, m_xFreeListHead);
+	resetFreeList ();
     }
 
     return xEntry;
@@ -912,10 +945,12 @@ void M_ASD::CT::growFreeList () {
 
 	page (oldCount);
 	m_cEntries = newCount;
-
 	
     }
 
+#ifdef DEBUG_CTable
+    IO_printf ("\nCT growFreeList for Space %u (OC:%u NC:%u):\n", spaceIndex (), oldCount, newCount);
+#endif
 //  Finally, initialize the new entries, ...
     while (oldCount < newCount) {
 	entry (oldCount)->setToFreeListEntry (m_xFreeListHead);
@@ -937,8 +972,8 @@ M_ASD::CT::Page *M_ASD::CT::page_(unsigned int xPage) const {
 //  Validate the page index, ...
     if (xPage >= m_sPageVector) raiseException (
 	EC__MError,
-	"M_ASD::CT:: CTE Page Index %u Exceeds Limit %u: %s:%u",
-	xPage, m_sPageVector, ndfPathName (), spaceIndex ()
+	"M_ASD::CT:: CTE Page Index %u Exceeds Limit %u: %s:%u (entry count: %u)",
+	xPage, m_sPageVector, ndfPathName (), spaceIndex (), persistentEntryCount()
     );
 
 //  ... if necessary, allocate the page, ...
@@ -1812,7 +1847,9 @@ void M_ASD::EnablePCTModification () {
 
     //  ... align it with the transient container table, ...
 	AlignCT ();
-
+#ifdef DEBUG_CTable
+    IO_printf ("\nCT Modification for Space %u:\n", Index ());
+#endif
     //  ... and rebuild its free list:
 	PS_CT *pPCT = PS_ASD_UpdateCT (m_pPASD);
 	PS_CT_FreeList (pPCT) = PS_CT_FreeListNil;
@@ -1827,6 +1864,13 @@ void M_ASD::EnablePCTModification () {
 	    PS_CTE_IsFree	(rPCTE) = true;
 	    PS_CTE_NextFree	(rPCTE) = PS_CT_FreeList (pPCT);
 	    PS_CT_FreeList	(pPCT) = xFreeEntry;
+#ifdef DEBUG_CTable
+	    IO_printf (
+		"\n\tFree list entry: %u %u", 
+		xFreeEntry, 
+		PS_CTE_NextFree (rPCTE)
+	    );
+#endif
 	}
     }
 }
