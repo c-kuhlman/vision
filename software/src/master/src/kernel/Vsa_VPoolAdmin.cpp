@@ -44,6 +44,7 @@ Vsa::VPoolAdmin::VPoolAdmin (
     Context *pContext
 ) : BaseClass (pContext), m_iCommandCursor (this), m_pIAdmin (this) {
     traceInfo ("Creating Admin");
+    g_bFullControl = currentUserIsInRightsList ();
 }
 
 /*************************
@@ -100,23 +101,39 @@ bool Vsa::VPoolAdmin::start_() {
             "      -poolLogSwitchOn|Off",
             static_cast<char const*>(0)
         );
-        displayOptions (
-            "  Pool Control Options:",
-            "      -restart",
-            "      -hardRestart",
-            "      -suspend",
-            "      -resume",
-            "      -stop",
-            "      -hardStop",
-            "      -flushWorkers",
-            "      -broadcastQuery= <vision query> [-timeout=<seconds>]",
-            "      -broadcastFile = <vision script file> [-timeout=<seconds>]",
-            "      -takeWorkerOffline=<*workerId|processId>",
-            "      -bringWorkerOnline=<*workerId|processId>",
-            "      -retireOfflineWorker=<*workerId|processId>",
-            "      [-timeout=<seconds>] -ping=<query> [-anyData]",
-            static_cast<char const*>(0)
-        );
+	if (g_bFullControl)
+	    displayOptions (
+                "  Pool Control Options:",
+                "      -restart",
+                "      -hardRestart",
+                "      -suspend",
+                "      -resume",
+                "      -stop",
+                "      -hardStop",
+                "      -flushWorkers",
+                "      -broadcastQuery= <vision query> [-timeout=<seconds>]",
+                "      -broadcastFile = <vision script file> [-timeout=<seconds>]",
+                "      -takeWorkerOffline=<*workerId|processId>",
+                "      -bringWorkerOnline=<*workerId|processId>",
+                "      -retireOfflineWorker=<*workerId|processId>",
+                "      [-timeout=<seconds>] -ping=<query> [-anyData]",
+                static_cast<char const*>(0)
+            );
+	else
+	    displayOptions (
+                "  Pool Control Options:",
+                "      -restart",
+                "      -hardRestart",
+                "      -resume",
+                "      -flushWorkers",
+                "      -broadcastQuery= <vision query> [-timeout=<seconds>]",
+                "      -broadcastFile = <vision script file> [-timeout=<seconds>]",
+                "      -takeWorkerOffline=<*workerId|processId>",
+                "      -bringWorkerOnline=<*workerId|processId>",
+                "      -retireOfflineWorker=<*workerId|processId>",
+                "      [-timeout=<seconds>] -ping=<query> [-anyData]",
+                static_cast<char const*>(0)
+            );
 
         displayOptions (
             "  Pool Query Options:",
@@ -162,14 +179,14 @@ Vsa::VPoolAdminSession* Vsa::VPoolAdmin::Open (
 
 void Vsa::VPoolAdmin::Stop (VString const &rSession) {
     Session::Reference pSession;
-    if (getSession (rSession, pSession)) {
+    if (g_bFullControl && getSession (rSession, pSession)) {
         pSession->Stop ();
 	//        m_iSessionTable.Delete (rSession.content ());
     }
 }
 void Vsa::VPoolAdmin::Suspend (VString const &rSession) const {
     Session::Reference pSession;
-    if (getSession (rSession, pSession))
+    if (g_bFullControl && getSession (rSession, pSession))
         pSession->Suspend ();
 }
 
@@ -199,7 +216,7 @@ void Vsa::VPoolAdmin::FlushWorkers (VString const &rSession) const {
 
 void Vsa::VPoolAdmin::HardStop (VString const &rSession) {
     Session::Reference pSession;
-    if (getSession (rSession, pSession)) {
+    if (g_bFullControl && getSession (rSession, pSession)) {
         pSession->HardStop ();
 	//        m_iSessionTable.Delete (rSession.content ());
     }
@@ -714,12 +731,50 @@ bool Vsa::VPoolAdmin::getSession (
  *****  Utility  *****
  *********************/
 bool Vsa::VPoolAdmin::g_bInteractive = false;
+bool Vsa::VPoolAdmin::g_bFullControl = false;
 
 void Vsa::VPoolAdmin::displayResult (VString const &rResult) {
     display ("%s", rResult.content ());
     if (g_bInteractive) Vsa::VPoolAdminInterpreter::displayPrompt ();
     else display ("\n");
     fflush (stdout);
+}
+
+bool Vsa::VPoolAdmin::currentUserIsInRightsList () {
+/*****  Obtain the name of the current user, ...  *****/
+    char iBuffer[256];
+    char const *userName;
+    userName = Vk_username (iBuffer, sizeof (iBuffer));
+    if (IsNil (userName))
+	return false;
+
+/*****  ... open the global update access rights file, ...  *****/
+    FILE *rightsListStream;
+    rightsListStream = fopen (
+	fullAdminRightsListName (), "r"
+    );
+
+    if (IsNil (rightsListStream))
+	return false;
+
+/*****  ... search for the user in the access rights stream, ...  *****/
+    bool result = false;
+    char rightsEntry [80];
+
+    while (IsntNil (fgets (rightsEntry, sizeof rightsEntry, rightsListStream))) {
+	rightsEntry [sizeof (rightsEntry) - 1] = '\0';
+	rightsEntry [strlen (rightsEntry) - 1] = '\0';
+	if (strncmp (userName, rightsEntry, sizeof rightsEntry) == 0) {
+	    result = true;
+	    break;
+	}
+    }
+
+/*****  ... close the access rights stream, ...  *****/
+    fclose (rightsListStream);
+
+/*****  ... and return.  *****/
+    return result;
 }
 
 /*******************************

@@ -96,10 +96,12 @@ char const *Vsa::VPoolAdminInterpreter::g_pCommandUsage[] = {
  *****  Construction  *****
  **************************
  **************************/
+bool Vsa::VPoolAdminInterpreter::g_bFullControl = false;
 
 Vsa::VPoolAdminInterpreter::VPoolAdminInterpreter (
     VPoolAdmin *pAdmin, Vca::VBSProducer *pBSToHere
 ) : BaseClass (pBSToHere), m_pAdmin (pAdmin) {
+    g_bFullControl = pAdmin->g_bFullControl;
     displayPrompt ();
     start ();
 }
@@ -764,17 +766,33 @@ void Vsa::VPoolAdminInterpreter::onDone_() {
 
 void Vsa::VPoolAdminInterpreter::displayCommands() {
     unsigned int xDescription = 0;
+    unsigned int iCount = 1;
     display ("\nUsage: Command <parameters> [session]\n");
 
     while (g_pCommandUsage[xDescription]) {
-        char const *pDescription = g_pCommandUsage[xDescription++];
-        display ("\n%2d. %s", xDescription, pDescription);
+        char const *pDescription = g_pCommandUsage[xDescription];
+	if (thisCommandShouldBeDisplayed ((Command)xDescription++))
+	    display ("\n%2d. %s", iCount++, pDescription);
     }
     display ("\n");
 }
 
 void Vsa::VPoolAdminInterpreter::displayCommand (Command iCommand) {
     display ("Usage:%s\n", g_pCommandUsage[iCommand]);
+}
+
+bool Vsa::VPoolAdminInterpreter::thisCommandShouldBeDisplayed (Command iCommand) {
+    bool result = true;
+    if (!g_bFullControl)
+	switch (iCommand) {
+	case CStop:
+	case CHardStop:
+	case CSuspend:
+	  result = false;
+	default:
+	  ;
+	}
+    return result;
 }
 
 void Vsa::VPoolAdminInterpreter::displayPrompt () {
