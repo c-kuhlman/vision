@@ -879,8 +879,8 @@ PrivateFnDef int ConvertDataFileToSegment (
 				*writePtr,
 				*endPtr,
 				*origEnd;
+    long			adjustment;
     int				seg,
-				adjustment,
 				itemNumber,
 				bufferOffset,
 				fileOffset,
@@ -987,7 +987,7 @@ PrivateFnDef int ConvertDataFileToSegment (
 		origEnd += adjustment;
 #if TracingMemoryMovement
 		fprintf (
-		    Logfile, "\n\t remapped data file (%d) -- ", adjustment
+		    Logfile, "\n\t remapped data file (%ld) -- ", adjustment
 		);
 #endif
 	    }
