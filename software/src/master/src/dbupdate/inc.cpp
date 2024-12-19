@@ -144,16 +144,16 @@ PrivateVarDef char const *StringNA_value =
  *
  *****/
 PrivateFnDef void AccumulateChecksum (
-    unsigned long *		checksum,
+    unsigned int *		checksum,
     void *			structure,
-    unsigned long		structureSize
+    unsigned int		structureSize
 )
 {
-    unsigned long		*wp, *wl;
+    unsigned int		*wp, *wl;
 
-    wp = (unsigned long *)structure;
+    wp = (unsigned int *)structure;
     wl = wp
-       + (structureSize + sizeof (unsigned long) - 1) / sizeof (unsigned long);
+       + (structureSize + sizeof (unsigned int) - 1) / sizeof (unsigned int);
 
     while (wp < wl) *checksum ^= *wp++;
 }
@@ -893,7 +893,7 @@ PrivateFnDef int ConvertDataFileToSegment (
 				granularity,
 				count,
 				needsTruncating;
-    unsigned long		checksum;
+    unsigned int		checksum;
     int				fd;
     osDUMP_VectorType		*vector;
 
@@ -1159,7 +1159,7 @@ PrivateFnDef void OutputFinalSegment (
     long			filesize = sizeof (PS_SH);
     int				temp;
     int				fd;
-    unsigned long		checksum;
+    unsigned int		checksum;
 
     sprintf (filename, "%s%d.dat", fileprefix, currentFileCount);
     if (-1 == (int)(fd = open (filename, O_RDWR | O_CREAT, 0640)))
